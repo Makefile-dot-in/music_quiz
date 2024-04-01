@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select\n                                        tracks.id as id,\n                                        albums.title as album_title,\n                                        albums.cover_url as album_cover_url,\n                                        albums.id as album_id,\n                                        tracks.title as title,\n                                        tracks.preview_url as preview_url\n                                    from\n                                        albums join tracks ON albums.id = tracks.album\n                                    where\n                                        albums.artist = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "album_title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "album_cover_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "album_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "preview_url",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "896dbe67194e715cd6cf83c28a5f4686f0156612bc94fa9f61842a88133b5485"
+}

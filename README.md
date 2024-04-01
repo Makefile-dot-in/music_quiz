@@ -4,7 +4,7 @@ This is a simple music quiz.
 
 # Usage
 
-To run, build (as this uses sqlx, you'll need to provide a `DATABASE_URL`) and then execute with two arguments:
+To run, build (~~as this uses sqlx, you'll need to provide a `DATABASE_URL`~~ i ran `cargo sqlx prepare` so this is no longer true) and then execute with two arguments:
 
 * the first argument should be a path to a config file that looks like this:
 

@@ -1,4 +1,6 @@
 .devenv
+.env
+.envrc
 target/
 flake.lock
 Cargo.lock

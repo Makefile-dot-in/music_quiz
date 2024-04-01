@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Main{% endblock %}
+{% block stylesheet %}search.css{% endblock %}
+{% block content %}
+<form action="" method="get">
+  <input id="search-box" name="q" type="text" placeholder="Artist name...">
+  <input type="submit" value="Search">
+</form>
+
+<ul id="results">
+  {% for artist in results %}
+  <li>
+    <a href="/artist/{{ artist.id }}">
+      <img src="{{ artist.picture_small }}">
+      {{ artist.name }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

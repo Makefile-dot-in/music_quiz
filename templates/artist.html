@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ artist.title }}{% endblock %}
+{% block stylesheet %}artist.css{% endblock %}
+{% block head %}
+<script>const ARTIST_ID = {{ artist.id|json|safe }};</script>
+<script src="/static/js/quiz.js"></script>
+{% endblock %}
+{% block content %}
+<h1>{{ artist.title }}</h1>
+<quiz-views id="top-level-views">
+  <div id="artist-info">
+    <img src="{{ artist.icon_url }}">
+    <p><button id="quiz-start-button">Guess {{ artist.title }}'s songs</button></p>
+  </div>
+  <quiz-elem id="quiz" class="hidden">
+    <div id="quiz-scorebox">
+      Score
+      <span id="quiz-score">?</span>
+    </div>
+
+    <quiz-views id="quiz-qa-section">
+      <div id="quiz-question" class="hidden">
+        <h3>Song #<span id="quiz-songno">?</span> of <span id="quiz-total">?</span></h3>
+        <p>
+          <button is="quiz-play-stop-btn" id="play-button">
+            Play audio
+          </button>
+        </p>
+        <div id="quiz-options">
+        </div>
+      </div>
+      <div id="quiz-q-answer" class="hidden">
+        <img id="quiz-q-ans-cover">
+        <p id="quiz-q-ans-title"></p>
+        <p id="quiz-q-ans-album"></p>
+        <div id="quiz-q-ans-btns">
+        </div>
+      </div>
+    </quiz-views>
+  </quiz-elem>
+  <div id="quiz-results" class="hidden">
+    <h2>Your result:</h2>
+    <p id="quiz-final-score"></p>
+    <p>
+      <button id="quiz-try-again-btn">Try again</button>
+    </p>
+  </div>
+</quiz-views>
+{% endblock %}

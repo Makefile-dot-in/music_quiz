@@ -1,0 +1,4 @@
+# example & testing config
+database_url = "postgres://localhost:12345/music_quiz"
+cache_duration = "1h"
+bind_address = "0.0.0.0:8080"

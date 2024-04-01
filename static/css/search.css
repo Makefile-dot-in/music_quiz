@@ -1,0 +1,24 @@
+@import url("common.css");
+
+
+
+#results > li > a {
+    display: flex;
+    gap: 0.5em;
+    margin-top: 0.5em;
+    transition: background-color 0.5s ease-in;
+}
+
+#results > li img {
+    border: 1px solid gray;
+}
+
+#results > li:hover > a {
+    background-color: var(--hl-color);
+}
+
+#results {
+    padding: 0;
+    list-style: none;
+    margin: 1em;
+}

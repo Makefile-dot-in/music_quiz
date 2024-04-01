@@ -1,0 +1,72 @@
+@import url("common.css");
+
+#quiz-scorebox {
+    display: flex;
+    flex-direction: column;
+    font-family: "Ubuntu Mono", monospace;
+    width: fit-content;
+    padding: 0.3em 1em;
+    margin: auto;
+    border: 5px solid var(--scorebox-border);
+    background-color: var(--scorebox-color);
+    color: var(--scorebox-text);
+}
+
+#quiz-score {
+    font-size: 3em;
+    color: var(--scorebox-score-color);
+}
+
+#quiz-qa-section {
+    margin-top: 2em;
+}
+
+#quiz-options {
+    display: flex;
+    flex-direction: row;
+    margin: auto;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    width: min(calc(2*var(--button-width) + 0.5em), 100vw);
+}
+
+#quiz-options > button {
+    flex: 0 var(--button-width);
+}
+
+#quiz-q-ans-cover {
+    border: 1px solid var(--border-color);
+}
+
+#quiz-q-ans-title {
+    margin-top: 0.5em;
+    margin-bottom: 0.3em;
+    padding: 0;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+#quiz-q-ans-album {
+    padding: 0;
+    margin-top: 0;
+    margin-bottom: 0.7em;
+    font-size: 1.3em;
+}
+
+#quiz-q-ans-btns {
+    margin: auto;
+}
+
+#play-button {
+    width: calc(var(--button-width) / 2);
+}
+
+#quiz-q-ans-btns > button {
+   width: fit-content;
+    margin-right: 5px;
+}
+
+#quiz-final-score {
+    font-size: 3em;
+}

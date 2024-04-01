@@ -1,0 +1,8 @@
+{% extends "errbase.html" %}
+{% block shortdesc %}Loading...{% endblock %}
+{% block longdesc %}The server is downloading track information. This should be done soon. This page will auto-reload shortly.{% endblock %}
+
+{% block head %}
+<meta http-equiv="refresh" content="5">
+{% call super() %}
+{% endblock %}

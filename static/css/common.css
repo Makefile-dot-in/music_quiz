@@ -1,0 +1,116 @@
+@import url("font.css");
+
+:root {
+    --bg-color: #01011a;
+    --text-color: #ebebeb;
+    --btn-color: transparent;
+    --scorebox-color: white;
+    --scorebox-text: black;
+    --input-bg-color: #ebebeb;
+    --input-fg-color: black;
+    --scorebox-border: #ff6c00;
+    --scorebox-score-color: green;
+    --nav-bg-color: #067039;
+    --nav-height: 3em;
+    --hl-color: #020233;
+    --border-color: white;
+    --button-width: 20em;
+}
+
+/* god i hate CSS */
+a, a:visited {
+    color: inherit;
+    text-decoration: none;
+}
+
+quiz-views, quiz-elem {
+    display: block;
+}
+
+body {
+    font-family: "Noto Sans", sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    padding-top: var(--nav-height);
+}
+main {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 2em;
+    text-align: center;
+}
+
+button, input:not([type="range"]) {
+    font-size: inherit;
+    box-shadow: none;
+    border: 1pt solid var(--text-color);
+    transition: all 0.5s ease-out;
+    border-radius: 0.7em;
+    padding: 1em;
+}
+
+button, input[type="submit"] {
+    color: var(--text-color);
+    background-color: var(--btn-color);
+}
+
+button {
+    width: var(--button-width);
+}
+
+button:hover, button:active, input[type="submit"]:hover, input[type="submit"]:active {
+    cursor: pointer;
+    color: var(--bg-color);
+    background-color: var(--text-color);
+}
+
+.hidden {
+    display: none;
+}
+
+nav {
+    font-size: 1em;
+    font-weight: bold;
+    font-family: "Ubuntu Mono", monospace;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-left: 1em;
+    margin-right: 1em;
+    margin-top: 0;
+    margin-bottom: 0;
+    height: 100%;
+}
+
+nav > div {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+}
+
+#top {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: var(--nav-height);
+    background-color: var(--nav-bg-color);
+    border-radius: 10px;
+}
+
+
+@media screen and (max-width: 40em) {
+    nav {
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    #top {
+        height: calc(2 * var(--nav-height));
+    }
+
+    body {
+        padding-top: calc(2 * var(--nav-height));
+    }
+}

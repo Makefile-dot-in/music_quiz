@@ -3,19 +3,19 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::NaiveDate;
+use lazy_static::lazy_static;
+use reqwest::Method;
 use reqwest::Request;
 use reqwest::Response;
-use reqwest::Method;
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 use thiserror::Error;
+use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tokio::task::JoinSet;
 use tokio::time::Instant;
 use url::Url;
-use serde::Deserialize;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
-use lazy_static::lazy_static;
 
 lazy_static! {
     static ref DEEZER_API_BASE: Url = Url::parse("https://api.deezer.com").unwrap();
@@ -28,7 +28,7 @@ pub enum Error {
     #[error("url parse error")]
     UrlParseError(#[from] url::ParseError),
     #[error("api error")]
-    ApiError(#[from] ApiErrCode)
+    ApiError(#[from] ApiErrCode),
 }
 
 /// Represents an artist as returned from the Deezer API.
@@ -82,7 +82,6 @@ pub struct PaginatedResponse<T> {
     pub total: u32,
 }
 
-
 struct DeezerRequest {
     req: Request,
     tx: oneshot::Sender<Result<reqwest::Response, reqwest::Error>>,
@@ -104,7 +103,8 @@ async fn serve_deezer(mut rx: mpsc::Receiver<DeezerRequest>) {
             let Some(r) = rx.recv().await else { return };
             let cref = Arc::clone(&c);
             set.spawn(async move {
-                r.tx.send(cref.execute(r.req).await).expect("oneshot channel closed");
+                r.tx.send(cref.execute(r.req).await)
+                    .expect("oneshot channel closed");
             });
         }
 
@@ -138,12 +138,12 @@ pub enum ApiErrCode {
     IndividualAccountNotAllowed = 901,
     #[error("Unknown error")]
     #[serde(other)]
-    Other = 0
+    Other = 0,
 }
 
 #[derive(Deserialize)]
 struct DeezerResponseError {
-    code: ApiErrCode
+    code: ApiErrCode,
 }
 
 #[derive(Deserialize)]
@@ -163,60 +163,83 @@ impl Deezer {
     async fn send_rq(&self, req: Request) -> Result<Response, Error> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(DeezerRequest { req, tx }).await.unwrap();
-        rx.await.expect("oneshot channel closed").map_err(Into::into)
+        rx.await
+            .expect("oneshot channel closed")
+            .map_err(Into::into)
     }
 
     async fn get<'a, T, PathIt, It, K, V>(&self, path: PathIt, params: It) -> Result<T, Error>
-    where T: DeserializeOwned,
-          PathIt: IntoIterator<Item = &'a str>,
-          It: IntoIterator<Item = (K, V)>,
-          K: AsRef<str>,
-          V: AsRef<str>
+    where
+        T: DeserializeOwned,
+        PathIt: IntoIterator<Item = &'a str>,
+        It: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
     {
         let mut url = DEEZER_API_BASE.clone();
         url.path_segments_mut().unwrap().extend(path);
         url.query_pairs_mut().extend_pairs(params);
         let rq = Request::new(Method::GET, url);
-        let retval: DeezerResponse<T> = self.send_rq(rq)
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+        let retval: DeezerResponse<T> = self.send_rq(rq).await?.error_for_status()?.json().await?;
 
         match retval {
-            DeezerResponse::Error { error: DeezerResponseError { code } } =>
-                Err(Error::ApiError(code)),
-            DeezerResponse::Ok(val) =>
-                Ok(val)
+            DeezerResponse::Error {
+                error: DeezerResponseError { code },
+            } => Err(Error::ApiError(code)),
+            DeezerResponse::Ok(val) => Ok(val),
         }
     }
 
     /// Searches artists.
-    pub async fn search_artist(&self, q: &str, index: u32, limit: u32) -> Result<PaginatedResponse<Artist>, Error> {
-        self.get(["search", "artist"],
-                 [("q", q),
-                  ("index", &index.to_string()),
-                  ("limit", &limit.to_string())]).await
+    pub async fn search_artist(
+        &self,
+        q: &str,
+        index: u32,
+        limit: u32,
+    ) -> Result<PaginatedResponse<Artist>, Error> {
+        self.get(
+            ["search", "artist"],
+            [
+                ("q", q),
+                ("index", &index.to_string()),
+                ("limit", &limit.to_string()),
+            ],
+        )
+        .await
     }
 
     /// Gets artist by ID
     pub async fn artist(&self, id: u32) -> Result<Artist, Error> {
-        self.get(["artist", &id.to_string()],
-                 iter::empty::<(&str, &str)>()).await
+        self.get(["artist", &id.to_string()], iter::empty::<(&str, &str)>())
+            .await
     }
 
     /// Gets albums by artist
-    pub async fn artist_albums(&self, id: u32, index: u32, limit: u32) -> Result<PaginatedResponse<Album>, Error> {
-        self.get(["artist", &id.to_string(), "albums"],
-                 [("index", &index.to_string()),
-                  ("limit", &limit.to_string())]).await
+    pub async fn artist_albums(
+        &self,
+        id: u32,
+        index: u32,
+        limit: u32,
+    ) -> Result<PaginatedResponse<Album>, Error> {
+        self.get(
+            ["artist", &id.to_string(), "albums"],
+            [("index", &index.to_string()), ("limit", &limit.to_string())],
+        )
+        .await
     }
 
     /// Gets tracks in album
-    pub async fn album_tracks(&self, id: u32, index: u32, limit: u32) -> Result<PaginatedResponse<Track>, Error> {
-        self.get(["album", &id.to_string(), "tracks"],
-                 [("index", &index.to_string()),
-                  ("limit", &limit.to_string())]).await
+    pub async fn album_tracks(
+        &self,
+        id: u32,
+        index: u32,
+        limit: u32,
+    ) -> Result<PaginatedResponse<Track>, Error> {
+        self.get(
+            ["album", &id.to_string(), "tracks"],
+            [("index", &index.to_string()), ("limit", &limit.to_string())],
+        )
+        .await
     }
 }
 
@@ -262,7 +285,10 @@ mod tests {
     async fn test_artist_albums() -> Result<(), Error> {
         let deez = Deezer::new();
         let albums = deez.artist_albums(56563392, 0, 100).await?;
-        assert!(albums.data.into_iter().any(|a| a.title == "Millennium Mother"));
+        assert!(albums
+            .data
+            .into_iter()
+            .any(|a| a.title == "Millennium Mother"));
         Ok(())
     }
 

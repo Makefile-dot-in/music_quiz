@@ -1,21 +1,30 @@
-use std::{collections::HashMap, future::Future, hash::Hash, sync::{Arc, RwLock, Weak}};
+use std::{
+    collections::HashMap,
+    future::Future,
+    hash::Hash,
+    sync::{Arc, RwLock, Weak},
+};
 
 use tokio::sync::broadcast;
 
 struct LoadingGuard<I, T>
-where I: Eq + Hash + Clone + Send + Sync + 'static,
-      T: Clone + Send + 'static {
+where
+    I: Eq + Hash + Clone + Send + Sync + 'static,
+    T: Clone + Send + 'static,
+{
     id: I,
     futweakref: Weak<RwLock<HashMap<I, broadcast::Sender<T>>>>,
 }
 
 impl<I, T> LoadingGuard<I, T>
-where I: Eq + Hash + Clone + Send + Sync + 'static,
-      T: Clone + Send + 'static {
+where
+    I: Eq + Hash + Clone + Send + Sync + 'static,
+    T: Clone + Send + 'static,
+{
     pub fn new(id: I, ld: &Loading<I, T>) -> Self {
         Self {
             id,
-            futweakref: Arc::downgrade(&ld.futures)
+            futweakref: Arc::downgrade(&ld.futures),
         }
     }
 
@@ -39,8 +48,10 @@ where I: Eq + Hash + Clone + Send + Sync + 'static,
 }
 
 impl<I, T> Drop for LoadingGuard<I, T>
-where I: Eq + Hash + Clone + Send + Sync + 'static,
-      T: Clone + Send + 'static {
+where
+    I: Eq + Hash + Clone + Send + Sync + 'static,
+    T: Clone + Send + 'static,
+{
     fn drop(&mut self) {
         drop(self.sender());
     }
@@ -59,21 +70,23 @@ pub struct Loading<I, T> {
 }
 
 impl<I, T> Loading<I, T>
-where I: Eq + Hash + Clone + Send + Sync + 'static,
-      T: Clone + Send + 'static {
+where
+    I: Eq + Hash + Clone + Send + Sync + 'static,
+    T: Clone + Send + 'static,
+{
     pub fn new() -> Self {
-        Self { futures: Arc::new(RwLock::new(HashMap::new())) }
+        Self {
+            futures: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 
     /// If loading isn't in progress, runs `fut` and registers it as loading `I`.
     /// Else, waits for the currently active loading to finish and returns a cloned value.
     pub async fn run<F>(&self, id: I, fut: F) -> T
-    where F: Future<Output = T> + Send + 'static {
-        let running_rx = self.futures
-                             .read()
-                             .unwrap()
-                             .get(&id)
-                             .map(|s| s.subscribe());
+    where
+        F: Future<Output = T> + Send + 'static,
+    {
+        let running_rx = self.futures.read().unwrap().get(&id).map(|s| s.subscribe());
         if let Some(mut rrx) = running_rx {
             return rrx.recv().await.unwrap();
         }
@@ -89,17 +102,21 @@ where I: Eq + Hash + Clone + Send + Sync + 'static,
 }
 
 impl<I, T> Default for Loading<I, T>
-    where I: Eq + Hash + Clone + Send + Sync + 'static,
-          T: Clone + Send + 'static {
+where
+    I: Eq + Hash + Clone + Send + Sync + 'static,
+    T: Clone + Send + 'static,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::{sync::atomic::{AtomicU32, Ordering}, time::Duration};
+    use std::{
+        sync::atomic::{AtomicU32, Ordering},
+        time::Duration,
+    };
 
     use super::*;
 

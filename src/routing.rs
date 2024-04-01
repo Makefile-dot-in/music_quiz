@@ -1,29 +1,31 @@
 use std::fmt::Debug;
 use std::time::Duration;
 
-use actix_web::http::header::CacheDirective;
-use actix_web::middleware::{DefaultHeaders, Logger, NormalizePath, TrailingSlash};
-use actix_web::web::{PathConfig, QueryConfig};
-use actix_web::{App, HttpServer, Responder};
-use actix_web::{body::BoxBody, get, web, HttpResponse, ResponseError};
-use actix_web::http::{header, StatusCode};
-use actix_web_lab::middleware::CatchPanic;
-use actix_files as fs;
-use askama::Template;
-use askama_actix::TemplateToResponse;
-use chrono::Utc;
 use crate::db::TrackInfo;
 use crate::deezer::Artist;
 use crate::Config;
-use crate::{db::ArtistInfo, deezer, state::{QuizState, RetrievalError}};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use std::error::Error;
+use crate::{
+    db::ArtistInfo,
+    deezer,
+    state::{QuizState, RetrievalError},
+};
+use actix_files as fs;
+use actix_web::dev::Service;
+use actix_web::http::header::{CacheDirective, HeaderValue};
+use actix_web::http::{header, StatusCode};
+use actix_web::middleware::{DefaultHeaders, Logger, NormalizePath, TrailingSlash};
+use actix_web::web::{PathConfig, QueryConfig};
+use actix_web::{body::BoxBody, get, web, HttpResponse, ResponseError};
+use actix_web::{App, HttpServer, Responder};
+use actix_web_lab::middleware::CatchPanic;
+use askama::Template;
+use askama_actix::TemplateToResponse;
+use chrono::Utc;
 use rand::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use thiserror::Error;
 use tokio::select;
-
-
-
 
 #[derive(Debug, Error)]
 enum QuizError {
@@ -48,7 +50,8 @@ struct LoadingErrorView;
 #[derive(Debug, Error, Template)]
 #[template(path = "errors/invalidurl.html")]
 struct InvalidReqView<E> {
-    #[from] err: E
+    #[from]
+    err: E,
 }
 
 #[derive(Template)]
@@ -64,7 +67,7 @@ impl From<RetrievalError> for QuizError {
         match value {
             RetrievalError::CacheUpdateInternalError => Self::UnknownError,
             RetrievalError::ApiError(err) => Self::Deezer(deezer::Error::ApiError(err)),
-            RetrievalError::DbError(err) => Self::DbError(err)
+            RetrievalError::DbError(err) => Self::DbError(err),
         }
     }
 }
@@ -76,18 +79,19 @@ impl<E: Debug + Error> ResponseError for InvalidReqView<E> {
         resp
     }
 
-    fn status_code(&self) -> StatusCode { StatusCode::BAD_REQUEST }
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
 }
 
 impl ResponseError for QuizError {
     fn error_response(&self) -> HttpResponse<BoxBody> {
         let mut resp = match self {
-            Self::Deezer(deezer::Error::ApiError(deezer::ApiErrCode::DataNotFound)) =>
-                NotFoundView.to_response(),
-            Self::Timeout =>
-                LoadingErrorView.to_response(),
-            _ =>
-                InternalErrorView.to_response()
+            Self::Deezer(deezer::Error::ApiError(deezer::ApiErrCode::DataNotFound)) => {
+                NotFoundView.to_response()
+            }
+            Self::Timeout => LoadingErrorView.to_response(),
+            _ => InternalErrorView.to_response(),
         };
         *resp.status_mut() = self.status_code();
         resp
@@ -95,9 +99,11 @@ impl ResponseError for QuizError {
 
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Deezer(deezer::Error::ApiError(deezer::ApiErrCode::DataNotFound)) => StatusCode::NOT_FOUND,
+            Self::Deezer(deezer::Error::ApiError(deezer::ApiErrCode::DataNotFound)) => {
+                StatusCode::NOT_FOUND
+            }
             Self::Timeout => StatusCode::SERVICE_UNAVAILABLE,
-            _ => StatusCode::INTERNAL_SERVER_ERROR
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -109,7 +115,10 @@ struct ArtistPageView {
 }
 
 #[get("/artist/{id}")]
-async fn artist_page(state: web::Data<QuizState>, id: web::Path<u32>) -> Result<impl Responder, QuizError> {
+async fn artist_page(
+    state: web::Data<QuizState>,
+    id: web::Path<u32>,
+) -> Result<impl Responder, QuizError> {
     let artist = select! {
         artist = state.get_artist(*id) => {
             artist?
@@ -119,22 +128,27 @@ async fn artist_page(state: web::Data<QuizState>, id: web::Path<u32>) -> Result<
         }
     };
 
-
     let updated_at = artist.updated_at;
-    let resp = ArtistPageView { artist }.customize()
-        .insert_header((header::AGE, (updated_at - Utc::now()).num_seconds()));
+    let resp = ArtistPageView { artist }
+        .customize()
+        .insert_header((header::AGE, (Utc::now() - updated_at).num_seconds()));
     Ok(resp)
 }
-
 
 #[derive(Serialize)]
 struct Question {
     answer_info: TrackInfo,
-    options: Vec<String>
+    options: Vec<String>,
 }
 
-#[get("/artist/{id}/questions.json")]
-async fn artist_questions(state: web::Data<QuizState>, id: web::Path<u32>) -> Result<impl Responder, QuizError> {
+#[get(
+    "/artist/{id}/questions.json",
+    wrap = "DefaultHeaders::default().add(header::CacheControl(vec![CacheDirective::NoCache]))"
+)]
+async fn artist_questions(
+    state: web::Data<QuizState>,
+    id: web::Path<u32>,
+) -> Result<impl Responder, QuizError> {
     let mut tracks = state.get_artist_tracks(*id).await?;
     let mut rng = thread_rng();
 
@@ -165,7 +179,7 @@ async fn artist_questions(state: web::Data<QuizState>, id: web::Path<u32>) -> Re
 
             Question {
                 answer_info: track.clone(),
-                options
+                options,
             }
         })
         .collect();
@@ -178,20 +192,22 @@ struct SearchParams {
 }
 
 #[derive(Template)]
-#[template(path = "search.html", escape="html")]
+#[template(path = "search.html", escape = "html")]
 struct SearchView {
     results: Vec<Artist>,
 }
 
 #[get("/")]
-async fn search(state: web::Data<QuizState>, query: web::Query<SearchParams>) -> Result<SearchView, QuizError> {
+async fn search(
+    state: web::Data<QuizState>,
+    query: web::Query<SearchParams>,
+) -> Result<SearchView, QuizError> {
     let results = match &query.q {
         Some(q) if q != "" => state.search_artists(q, 0, 10).await?.data,
         _ => Vec::new(),
     };
     Ok(SearchView { results })
 }
-
 
 #[derive(Debug, Error)]
 pub enum QuizInitError {
@@ -200,12 +216,15 @@ pub enum QuizInitError {
     #[error("IO error")]
     IoError(#[from] std::io::Error),
     #[error("config parsing error")]
-    ConfigError(#[from] toml::de::Error)
+    ConfigError(#[from] toml::de::Error),
 }
 
-
 pub async fn start_server(c: Config) -> Result<(), QuizInitError> {
-    let Config { database_url, cache_duration, bind_address } = c;
+    let Config {
+        database_url,
+        cache_duration,
+        bind_address,
+    } = c;
 
     let data = web::Data::new(QuizState::new(&database_url, cache_duration)?);
 
@@ -214,31 +233,36 @@ pub async fn start_server(c: Config) -> Result<(), QuizInitError> {
             .app_data(data.clone())
             .service(fs::Files::new("/static", "static"))
             .service(artist_page)
-            .service({
-                web::scope("")
-                    .service(artist_questions)
-                    .wrap(DefaultHeaders::default()
-                          .add(header::CacheControl(vec![
-                              CacheDirective::NoCache
-                          ])))
-            })
+            .service(artist_questions)
             .service(search)
             .app_data(PathConfig::default().error_handler(|err, _| InvalidReqView { err }.into()))
             .app_data(QueryConfig::default().error_handler(|err, _| InvalidReqView { err }.into()))
-            .default_service(web::to(|| async { (UrlNotFoundView, StatusCode::NOT_FOUND) }))
+            .default_service(web::to(|| async {
+                (UrlNotFoundView, StatusCode::NOT_FOUND)
+            }))
+            .wrap_fn(|req, srv| {
+                let fut = srv.call(req);
+                async {
+                    let mut res = fut.await?;
+                    if !res.status().is_success() {
+                        res.headers_mut()
+                            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+                    }
+                    Ok(res)
+                }
+            })
             .wrap({
-                DefaultHeaders::default()
-                    .add(header::CacheControl(vec![
-                        CacheDirective::MaxAge(cache_duration.num_seconds().try_into().unwrap_or(u32::MAX))
-                    ]))
+                DefaultHeaders::default().add(header::CacheControl(vec![CacheDirective::MaxAge(
+                    cache_duration.num_seconds().try_into().unwrap_or(u32::MAX),
+                )]))
             })
             .wrap(NormalizePath::new(TrailingSlash::Trim))
             .wrap(CatchPanic::default())
             .wrap(Logger::default())
     })
-        .bind(bind_address)?
-        .run()
-        .await?;
+    .bind(bind_address)?
+    .run()
+    .await?;
 
     Ok(())
 }

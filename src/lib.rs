@@ -1,17 +1,14 @@
-
 use chrono::TimeDelta;
-use serde::{de::Unexpected, Deserialize, Deserializer};
 use serde::de::Error;
+use serde::{de::Unexpected, Deserialize, Deserializer};
 
+pub mod db;
 pub mod deezer;
 pub mod loading;
-pub mod db;
-pub mod state;
 pub mod routing;
-
+pub mod state;
 
 const WEBSITE_NAME: &str = "quiz.make.id.lv";
-
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -32,7 +29,7 @@ pub fn parse_timedelta(s: &str) -> Option<TimeDelta> {
                 'm' => TimeDelta::try_minutes(num)?,
                 'h' => TimeDelta::try_hours(num)?,
                 'd' => TimeDelta::try_days(num)?,
-                _ => return None
+                _ => return None,
             };
             Some(comp)
         })
@@ -41,8 +38,9 @@ pub fn parse_timedelta(s: &str) -> Option<TimeDelta> {
 
 /// Uses [`parse_timedelta`] to deserialize a [`TimeDelta`]
 pub fn deser_timedelta<'de, D>(deserializer: D) -> Result<TimeDelta, D::Error>
-where D: Deserializer<'de> {
+where
+    D: Deserializer<'de>,
+{
     let s: String = Deserialize::deserialize(deserializer)?;
-    parse_timedelta(&s)
-        .ok_or_else(|| D::Error::invalid_value(Unexpected::Str(&s), &"a duration"))
+    parse_timedelta(&s).ok_or_else(|| D::Error::invalid_value(Unexpected::Str(&s), &"a duration"))
 }

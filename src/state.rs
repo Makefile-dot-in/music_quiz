@@ -1,18 +1,20 @@
 use std::error::Error;
 
+use crate::{
+    db::{AlbumInfo, ArtistInfo, TrackInfo},
+    deezer::{self, Artist, Deezer, PaginatedResponse},
+    loading::Loading,
+};
 use chrono::{TimeDelta, Utc};
-use crate::{db::{AlbumInfo, ArtistInfo, TrackInfo}, deezer::{self, Artist, Deezer, PaginatedResponse}, loading::Loading};
 use sqlx::{PgPool, Postgres, Transaction};
 use thiserror::Error;
-
-
 
 #[derive(Debug, Error, Clone)]
 enum CacheUpdateError {
     #[error("deezer API error")]
     ApiError(#[source] deezer::ApiErrCode),
     #[error("internal error")]
-    InternalError
+    InternalError,
 }
 
 #[derive(Debug, Error)]
@@ -22,7 +24,7 @@ pub enum RetrievalError {
     #[error("deezer API error")]
     ApiError(#[from] deezer::ApiErrCode),
     #[error("database error")]
-    DbError(#[from] sqlx::Error)
+    DbError(#[from] sqlx::Error),
 }
 
 impl From<CacheUpdateError> for RetrievalError {
@@ -35,7 +37,6 @@ impl From<CacheUpdateError> for RetrievalError {
     }
 }
 
-
 fn to_internal_error<E: Error + 'static>(err: E) -> CacheUpdateError {
     let mut errstrings = Vec::new();
     let mut cerr: &(dyn Error + 'static) = &err;
@@ -43,7 +44,9 @@ fn to_internal_error<E: Error + 'static>(err: E) -> CacheUpdateError {
         errstrings.push(cerr.to_string());
 
         match cerr.source() {
-            Some(e) => { cerr = e; },
+            Some(e) => {
+                cerr = e;
+            }
             None => break,
         }
     }
@@ -56,7 +59,7 @@ impl From<deezer::Error> for CacheUpdateError {
         use deezer::Error;
         match value {
             Error::ApiError(e) => CacheUpdateError::ApiError(e),
-            e => to_internal_error(e)
+            e => to_internal_error(e),
         }
     }
 }
@@ -66,9 +69,8 @@ pub struct QuizState {
     loading: Loading<u32, Result<(ArtistInfo, Option<Vec<TrackInfo>>), CacheUpdateError>>,
     pool: PgPool,
     cache_duration: chrono::Duration,
-    deezer: Deezer
+    deezer: Deezer,
 }
-
 
 impl QuizState {
     /// Createa a new quiz from `conf`.
@@ -77,20 +79,20 @@ impl QuizState {
             loading: Loading::new(),
             pool: PgPool::connect_lazy(db_address)?,
             cache_duration,
-            deezer: Deezer::new()
+            deezer: Deezer::new(),
         })
     }
 
-    async fn update_cache(deezer: Deezer, mut trans: Transaction<'_, Postgres>, artist_id: u32) -> Result<(ArtistInfo, Option<Vec<TrackInfo>>), CacheUpdateError> {
+    async fn update_cache(
+        deezer: Deezer,
+        mut trans: Transaction<'_, Postgres>,
+        artist_id: u32,
+    ) -> Result<(ArtistInfo, Option<Vec<TrackInfo>>), CacheUpdateError> {
         let artist = deezer.artist(artist_id).await?;
         let ainfo = ArtistInfo::from(artist);
-        ainfo.delete(&mut trans)
-             .await
-             .map_err(to_internal_error)?;
+        ainfo.delete(&mut trans).await.map_err(to_internal_error)?;
 
-        ainfo.insert(&mut trans)
-            .await
-            .map_err(to_internal_error)?;
+        ainfo.insert(&mut trans).await.map_err(to_internal_error)?;
 
         let mut tracks = Vec::new();
 
@@ -98,35 +100,37 @@ impl QuizState {
             let album_tracks = match deezer.album_tracks(album.id, 0, 300).await {
                 Ok(t) => t.data,
                 Err(e) => {
-                    log::warn!("Error getting tracks for album {album_id}: {e}", album_id = album.id);
+                    log::warn!(
+                        "Error getting tracks for album {album_id}: {e}",
+                        album_id = album.id
+                    );
                     continue;
                 }
             };
 
-
-            AlbumInfo
-                ::from_album(album.clone(), artist_id)
+            AlbumInfo::from_album(album.clone(), artist_id)
                 .insert(&mut trans)
                 .await
                 .map_err(to_internal_error)?;
 
             for track in album_tracks {
                 let trackinfo = TrackInfo::from_deezer(track, album.clone());
-                trackinfo.insert(&mut trans).await
+                trackinfo
+                    .insert(&mut trans)
+                    .await
                     .map_err(to_internal_error)?;
                 tracks.push(trackinfo);
             }
-
-
         }
 
-        trans.commit()
-             .await
-             .map_err(to_internal_error)?;
+        trans.commit().await.map_err(to_internal_error)?;
 
         Ok((ainfo, Some(tracks)))
     }
-    async fn update_cache_if_needed(&self, artist: u32) -> Result<(ArtistInfo, Option<Vec<TrackInfo>>), CacheUpdateError> {
+    async fn update_cache_if_needed(
+        &self,
+        artist: u32,
+    ) -> Result<(ArtistInfo, Option<Vec<TrackInfo>>), CacheUpdateError> {
         let mut trans = self.pool.begin().await.map_err(to_internal_error)?;
         let artist_opt = ArtistInfo::get_from_id(&mut trans, artist)
             .await
@@ -135,10 +139,16 @@ impl QuizState {
 
         match artist_opt {
             Some(artist) => Ok((artist, None)),
-            None => self.loading.run(artist, QuizState::update_cache(self.deezer.clone(), trans, artist)).await
+            None => {
+                self.loading
+                    .run(
+                        artist,
+                        QuizState::update_cache(self.deezer.clone(), trans, artist),
+                    )
+                    .await
+            }
         }
     }
-
 
     /// Retrieves artist wtih id `artist`, caching it as needed.
     pub async fn get_artist(&self, artist: u32) -> Result<ArtistInfo, RetrievalError> {
@@ -150,12 +160,19 @@ impl QuizState {
     pub async fn get_artist_tracks(&self, artist: u32) -> Result<Vec<TrackInfo>, RetrievalError> {
         match self.update_cache_if_needed(artist).await? {
             (_, Some(tracks)) => Ok(tracks),
-            (_, None) => Ok(TrackInfo::from_artist_id(self.pool.acquire().await?.as_mut(), artist).await?)
+            (_, None) => {
+                Ok(TrackInfo::from_artist_id(self.pool.acquire().await?.as_mut(), artist).await?)
+            }
         }
     }
 
     /// Searches for artists with names matching the given query using the Deezer API
-    pub async fn search_artists(&self, q: &str, index: u32, limit: u32) -> Result<PaginatedResponse<Artist>, deezer::Error> {
+    pub async fn search_artists(
+        &self,
+        q: &str,
+        index: u32,
+        limit: u32,
+    ) -> Result<PaginatedResponse<Artist>, deezer::Error> {
         self.deezer.search_artist(q, index, limit).await
     }
 }
@@ -183,22 +200,23 @@ mod test {
     #[serial]
     async fn test_get_artists(pool: sqlx::Pool<Postgres>) {
         let state = setup_state(pool).await;
-        let artist = state.get_artist(56563392)
-                          .await
-                          .unwrap();
+        let artist = state.get_artist(56563392).await.unwrap();
 
         assert_eq!(artist.title, "Mili");
 
-        assert!(ArtistInfo::get_from_id(&mut state.pool.acquire().await.unwrap(), 56563392).await.unwrap().is_some())
+        assert!(
+            ArtistInfo::get_from_id(&mut state.pool.acquire().await.unwrap(), 56563392)
+                .await
+                .unwrap()
+                .is_some()
+        )
     }
 
     #[sqlx::test]
     #[serial]
     async fn test_get_tracks_artist_cached(pool: sqlx::Pool<Postgres>) {
         let state = setup_state(pool).await;
-        let _artist = state.get_artist(56563392)
-            .await
-            .unwrap();
+        let _artist = state.get_artist(56563392).await.unwrap();
 
         let tracks = select! {
             trackres = state.get_artist_tracks(56563392) => {
@@ -208,17 +226,19 @@ mod test {
                 panic!("request timed out")
             }
         };
-        assert!(tracks.into_iter().any(|track| track.title == "Ga1ahad and Scientific Witchery"));
+        assert!(tracks
+            .into_iter()
+            .any(|track| track.title == "Ga1ahad and Scientific Witchery"));
     }
 
     #[sqlx::test]
     #[serial]
     async fn test_get_tracks_artist_noncached(pool: sqlx::Pool<Postgres>) {
         let state = setup_state(pool).await;
-        let tracks = state.get_artist_tracks(56563392)
-            .await
-            .unwrap();
+        let tracks = state.get_artist_tracks(56563392).await.unwrap();
 
-        assert!(tracks.into_iter().any(|track| track.title == "Ga1ahad and Scientific Witchery"));
+        assert!(tracks
+            .into_iter()
+            .any(|track| track.title == "Ga1ahad and Scientific Witchery"));
     }
 }

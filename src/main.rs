@@ -10,21 +10,18 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     let confname = args.next().expect("missing arguments: config command");
     let mut conftext = String::new();
-    File::open(confname)?
-        .read_to_string(&mut conftext)?;
+    File::open(confname)?.read_to_string(&mut conftext)?;
 
     let config = toml::from_str(&conftext)?;
 
     match args.next().expect("missing argument: command").as_str() {
         "start" => {
             music_quiz::routing::start_server(config).await?;
-        },
+        }
         "migrate" => {
             let pool = sqlx::PgPool::connect_lazy(&config.database_url)?;
-            sqlx::migrate!()
-                .run(&pool)
-                .await?;
-        },
+            sqlx::migrate!().run(&pool).await?;
+        }
         _ => {
             panic!("invalid command: must be either start or migrate");
         }

@@ -11,6 +11,7 @@ use actix_web_lab::middleware::CatchPanic;
 use actix_files as fs;
 use askama::Template;
 use askama_actix::TemplateToResponse;
+use chrono::Utc;
 use crate::db::TrackInfo;
 use crate::deezer::Artist;
 use crate::Config;
@@ -108,7 +109,7 @@ struct ArtistPageView {
 }
 
 #[get("/artist/{id}")]
-async fn artist_page(state: web::Data<QuizState>, id: web::Path<u32>) -> Result<ArtistPageView, QuizError> {
+async fn artist_page(state: web::Data<QuizState>, id: web::Path<u32>) -> Result<impl Responder, QuizError> {
     let artist = select! {
         artist = state.get_artist(*id) => {
             artist?
@@ -119,7 +120,10 @@ async fn artist_page(state: web::Data<QuizState>, id: web::Path<u32>) -> Result<
     };
 
 
-    Ok(ArtistPageView { artist })
+    let updated_at = artist.updated_at;
+    let resp = ArtistPageView { artist }.customize()
+        .insert_header((header::AGE, (updated_at - Utc::now()).num_seconds()));
+    Ok(resp)
 }
 
 
@@ -210,7 +214,14 @@ pub async fn start_server(c: Config) -> Result<(), QuizInitError> {
             .app_data(data.clone())
             .service(fs::Files::new("/static", "static"))
             .service(artist_page)
-            .service(artist_questions)
+            .service({
+                web::scope("")
+                    .service(artist_questions)
+                    .wrap(DefaultHeaders::default()
+                          .add(header::CacheControl(vec![
+                              CacheDirective::NoCache
+                          ])))
+            })
             .service(search)
             .app_data(PathConfig::default().error_handler(|err, _| InvalidReqView { err }.into()))
             .app_data(QueryConfig::default().error_handler(|err, _| InvalidReqView { err }.into()))

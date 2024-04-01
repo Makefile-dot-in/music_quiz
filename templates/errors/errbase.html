@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{% block shortdesc %}{% endblock %}{% endblock %}
+{% block description %}An error occurred while loading this page.{% endblock %}
+{% block canonurl %}/error{% endblock %}
 {% block stylesheet %}errors.css{% endblock %}
 {% block content %}
 <h1>{% block shortdesc %}{% endblock %}</h1>

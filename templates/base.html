@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
     <title>{% block title %}{% endblock %} : {{ crate::WEBSITE_NAME }}</title>
+    <meta property="og:title" content="{% block title %}{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://quiz.make.id.lv{% block canonurl %}{% endblock %}">
+    <meta property="og:description" content="{% block description %}{% endblock %}">
+    <meta property="og:site_name" content="{{ crate::WEBSITE_NAME }}">
     <link rel="stylesheet" href="/static/css/{% block stylesheet %}common.css{% endblock %}">
     <script src="/static/js/common.js"></script>
     {% block head %}

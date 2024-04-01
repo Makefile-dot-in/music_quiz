@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ artist.title }}{% endblock %}
+{% block canonurl %}/artist/{{ artist.id }}{% endblock %}
+{% block description %}Test your knowledge of the songs of the hit artist {{ artist.title }}{% endblock %}
 {% block stylesheet %}artist.css{% endblock %}
 {% block head %}
 <script>const ARTIST_ID = {{ artist.id|json|safe }};</script>

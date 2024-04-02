@@ -13,7 +13,7 @@
   {% for artist in results %}
   <li>
     <a href="/artist/{{ artist.id }}">
-      <img src="{{ artist.picture_small }}">
+      <img src="{{ artist.picture_small }}" alt="Icon for {{ artist.name }}">
       {{ artist.name }}
     </a>
   </li>

@@ -40,7 +40,7 @@ main {
     text-align: center;
 }
 
-button, input:not([type="range"]) {
+button, quiz-play-stop-btn, input:not([type="range"]) {
     font-size: inherit;
     box-shadow: none;
     border: 1pt solid var(--text-color);
@@ -49,16 +49,23 @@ button, input:not([type="range"]) {
     padding: 1em;
 }
 
-button, input[type="submit"] {
+button, quiz-play-stop-btn, input[type="submit"] {
     color: var(--text-color);
     background-color: var(--btn-color);
+}
+
+quiz-play-stop-btn {
+    display: block;
+    user-select: none;
 }
 
 button {
     width: var(--button-width);
 }
 
-button:hover, button:active, input[type="submit"]:hover, input[type="submit"]:active {
+button:hover, button:active,
+quiz-play-stop-btn:hover, quiz-play-stop-btn:active,
+input[type="submit"]:hover, input[type="submit"]:active {
     cursor: pointer;
     color: var(--bg-color);
     background-color: var(--text-color);

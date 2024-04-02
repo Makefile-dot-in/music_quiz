@@ -60,6 +60,10 @@
 
 #play-button {
     width: calc(var(--button-width) / 2);
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 1em;
+    margin-bottom: 1em;
 }
 
 #quiz-q-ans-btns > button {

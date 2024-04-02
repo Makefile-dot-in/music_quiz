@@ -43,16 +43,25 @@ class ViewsElement extends HTMLElement {
 
 customElements.define("quiz-views", ViewsElement);
 
-class PlayStopButton extends HTMLButtonElement {
+// This once inherited from HTMLButtonElement,
+// but it turns out that doesn't work on WebKit
+class PlayStopButton extends HTMLElement {
   #audio;
   #playing;
+  #internals;
   constructor() {
     super();
+    // god i hate webdev
+    if (ElementInternals !== undefined) {
+      this.#internals = this.attachInternals();
+      this.#internals.role = "button";
+    }
   }
 
   connectedCallback() {
     this.#audio = document.createElement("audio");
     this.#playing = false;
+    this.tabIndex = 0;
 
     this.#audio.addEventListener("play", this.#playStopCallback.bind(this, true));
     for (const ev of ["pause", "ended"])
@@ -63,7 +72,15 @@ class PlayStopButton extends HTMLButtonElement {
         this.stop();
     });
 
-    this.addEventListener("click", () => this.#playing ? this.stop() : this.play());
+    this.addEventListener("click", () => this.#togglePlaying());
+    this.addEventListener("keydown", ev => {
+      if (ev.key == "Enter") this.#togglePlaying();
+    });
+  }
+
+  #togglePlaying() {
+    if (this.#playing) this.stop();
+    else this.play();
   }
 
   #playStopCallback(playing) {
@@ -89,7 +106,7 @@ class PlayStopButton extends HTMLButtonElement {
   set volume(newvol) { this.#audio.volume = newvol; }
 }
 
-customElements.define("quiz-play-stop-btn", PlayStopButton, { extends: "button" });
+customElements.define("quiz-play-stop-btn", PlayStopButton);
 
 class QuizElement extends HTMLElement {
   #score;

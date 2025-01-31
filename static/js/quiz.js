@@ -13,6 +13,19 @@ function wait_event(el, evtyp) {
   return new Promise(resolve => el.addEventListener(evtyp, resolve, { once: true }));
 }
 
+// JSONP my beloved
+async function get_track(id) {
+  const promise = new Promise(resolve => deezer_callback = resolve);
+  const element = document.createElement("script");
+  element.src = `https://api.deezer.com/track/${encodeURIComponent(id)}?output=jsonp&callback=deezer_callback`;
+  document.head.append(element);
+  try {
+    return await promise;
+  } finally {
+    element.remove();
+  }
+}
+
 class ViewsElement extends HTMLElement {
   constructor() {
     super();
@@ -144,8 +157,9 @@ class QuizElement extends HTMLElement {
     this.songno = 0;
   }
 
-  async ask(preview_url, options) {
-    this.#playButton.src = preview_url;
+  async ask(id, options) {
+    const track = await get_track(id);
+    this.#playButton.src = track.preview;
     this.#playButton.play();
 
     const answer_promises = [];
@@ -239,7 +253,7 @@ async function run_quiz() {
 
   for (const q of qs) {
     quiz.songno++;
-    let user_answer = await quiz.ask(q.answer_info.preview_url, q.options);
+    let user_answer = await quiz.ask(q.answer_info.id, q.options);
     const correct = q.answer_info.title === user_answer;
     if (correct) quiz.score++;
     const answerOptions = quiz.songno !== quiz.total
